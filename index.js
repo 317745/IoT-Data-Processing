@@ -24,7 +24,10 @@ let validationTrue = (response) => {
     if (!boolResponse) {
         let responseData = response['data']
         throw new Error(responseData)
-    }
+    } if (response.status_data === 0){
+        let responseMsg = response['msg']
+        throw new Error(responseMsg)
+    } 
 }
 
 const getDataMedicion = async () => {
@@ -105,6 +108,7 @@ const postDataMedicion = async () => {
         return result;
     } finally {
         console.log(result['msg'])
+        await client.close();
     }
 };
 
@@ -191,6 +195,7 @@ const patchYearMedicion = async () => {
         return result;
     } finally {
         console.log(result['msg']);
+        await client.close();
     }
 };
 
@@ -253,7 +258,8 @@ const patchMedicion = async () => {
             result = {
                 'ok': true, 
                 'msg': 'No hay nuevos datos.',
-                'data': dataProcess
+                'data': dataProcess,
+                'status_data': 0
             }
             return result;
         }
@@ -460,14 +466,138 @@ const consumoMonth = async () => {
 
         return result;  
     } finally {
-        console.log(result)
-        await client.close();
+        console.log(result['msg']);
+    }
+};
+
+const postMedicionMensual = async () => {
+    try {
+        let consumoMensual = await consumoMonth();
+        validationTrue(consumoMensual);
+
+        consumoMensual = consumoMensual['data']
+
+        const db = await getDb();
+        const dataMensual = await db
+        .collection('consumo_mensual')
+        .insertMany(
+            consumoMensual
+        )
+
+        if (!dataMensual.acknowledged) {
+            result = {
+                'ok': false,
+                'msg': 'Ocurrio un error al subir los datos de consumo mensual a la db',
+                'data': null
+            };
+
+            return result;
+        } 
+
+        result = {
+            'ok': true,
+            'msg': 'El consumo mensual de publico de manera correcta a la db',
+            'data': consumoMensual
+        };
+
+        return result;
+    } catch (error) {
+        result = {
+            'ok': false,
+            'msg': 'Ocurrio un error al subir los datos de consumo mensual a la db',
+            'data': error
+        };
+
+        return result;
+    } finally {
+        console.log(result['msg']);
     }
 }
+
+const postLum = async () => {
+    try {
+        let dataLuminarias = await dataProcessing();
+        validationTrue(dataLuminarias);
+
+        dataLuminarias = dataLuminarias['data'];
+
+        let lum = Object.keys(dataLuminarias)
+
+        let lums_id = []
+
+        lum.forEach(lumId => {
+            lums_id.push({
+                'id_lum': lumId
+            })
+        })
+
+        const db = await getDb();
+        const luminarisPost = await db
+        .collection('luminaria')
+        .insertMany(
+            lums_id
+        )
+
+        if (!luminarisPost.acknowledged) {
+            result = {
+                'ok': false,
+                'msg': 'Ha ocurrido un error al tratar de almacenar las luminarias',
+                'data': null
+            };
+
+            return result;
+        }
+
+        result = {
+            'ok': true,
+            'msg': 'Las luminarias se han almacenado correctamente.',
+            'data': null
+        };
+
+        return result;
+    } catch (error) {
+        result = {
+            'ok': false,
+            'msg': 'Ocurrio un error al subir las limunarias a la db',
+            'data': error
+        };
+
+        return result;
+    } finally {
+        console.log(result['msg']);
+    }
+}
+
+/*const postSectores = async () => {
+    try {
+        const dataMedicion = await patchMedicion();
+        validationTrue(dataMedicion);
+
+        dataMedicion = dataMedicion['data'];
+        
+        let sectores = [];
+
+        for (let lumIndex = 0; lumIndex < dataMedicion.length; lumIndex++) {
+            dataMedicion[lumIndex][]
+        }
+        
+    } catch (error) {
+        esult = {
+            'ok': false,
+            'msg': 'Las luminarias se han almacenado correctamente.',
+            'data': error
+        };
+
+        return result;
+    } finally {
+        console.log(result['data']);
+    }
+}*/
 
 //getDataMedicion();
 //postDataMedicion();
 //patchYearMedicion();
 //patchMedicion();
 //dataProcessing();
-consumoMonth();
+//postMedicionMensual();
+postLum();
