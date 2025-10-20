@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+const { dateRange } = require('danfojs');
 const { MongoClient } = require('mongodb');
 const uri = process.env.CONN;
 
@@ -400,8 +401,67 @@ const dataProcessing = async () => {
 
         return result;
     } finally {
-        console.log(result['data'])
-        await client.close()
+        console.log(result['msg'])
+    }
+}
+
+const consumoMonth = async () => {
+    try {
+        let groupedConsum = await dataProcessing();
+        validationTrue(groupedConsum);
+
+        groupedConsum = groupedConsum['data']
+
+        let consumoLuminarias = [];
+        lums_id = Object.keys(groupedConsum);
+
+        lums_id.forEach(lumKey => {
+            let luminaria = groupedConsum[lumKey];
+            let years_id = Object.keys(luminaria);
+
+            years_id.forEach(yearKey => {
+                let year = luminaria[yearKey]
+                let months_id = Object.keys(year)
+
+                months_id.forEach(monthKey =>{
+                    let month = year[monthKey]
+
+                    let consumo = month.reduce(
+                        (acc, obj) => acc + obj['consumo'], 
+                        0
+                    )
+
+                    let consumoLum = {}
+
+                    consumoLum['id_lum'] = lumKey;
+                    consumoLum['id_year'] = yearKey;
+                    consumoLum['id_month'] = monthKey;
+                    consumoLum['consumoMensual'] = consumo;
+
+                    consumoLuminarias.push(consumoLum);
+                })
+            })
+        })
+
+        result = {
+            'ok': true,
+            'msg': 'El calculo de consumo mensual se realizo de manera correcta',
+            'data': consumoLuminarias
+        };
+
+        return result;
+
+    } catch (error) {
+        result = {
+            'ok': false,
+            'msg': 'Error al calcular el consumo mensual.',
+            'data': error
+        }
+
+        return result;  
+    } finally {
+        console.log(result)
+        await client.close();
     }
 }
 
@@ -409,4 +469,5 @@ const dataProcessing = async () => {
 //postDataMedicion();
 //patchYearMedicion();
 //patchMedicion();
-dataProcessing();
+//dataProcessing();
+consumoMonth();
