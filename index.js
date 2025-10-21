@@ -22,7 +22,10 @@ let getDb = async () => {
 let validationTrue = (response) => {
     let boolResponse = response['ok']
     if (!boolResponse) {
-        let responseData = response['data']
+        let responseData = response['msg']
+        throw new Error(responseData)
+    } else if (response['status_data'] === 0) {
+        let responseData = response['msg']
         throw new Error(responseData)
     }
 }
@@ -578,7 +581,6 @@ const postLum = async (dataLuminarias) => {
         console.log(result['msg']);
     }
 }
-
 
 const postAnalisis = async () => {
     try {
