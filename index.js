@@ -24,10 +24,7 @@ let validationTrue = (response) => {
     if (!boolResponse) {
         let responseData = response['data']
         throw new Error(responseData)
-    } if (response.status_data === 0){
-        let responseMsg = response['msg']
-        throw new Error(responseMsg)
-    } 
+    }
 }
 
 const getDataMedicion = async () => {
@@ -411,18 +408,13 @@ const dataProcessing = async () => {
     }
 }
 
-const consumoMonth = async () => {
+const consumoMonth = async (dataLuminarias) => {
     try {
-        let groupedConsum = await dataProcessing();
-        validationTrue(groupedConsum);
-
-        groupedConsum = groupedConsum['data']
-
         let consumoLuminarias = [];
-        lums_id = Object.keys(groupedConsum);
+        lums_id = Object.keys(dataLuminarias);
 
         lums_id.forEach(lumKey => {
-            let luminaria = groupedConsum[lumKey];
+            let luminaria = dataLuminarias[lumKey];
             let years_id = Object.keys(luminaria);
 
             years_id.forEach(yearKey => {
@@ -470,12 +462,12 @@ const consumoMonth = async () => {
     }
 };
 
-const postMedicionMensual = async () => {
+const postMedicionMensual = async (dataLuminarias) => {
     try {
-        let consumoMensual = await consumoMonth();
+        let consumoMensual =  await consumoMonth(dataLuminarias);
         validationTrue(consumoMensual);
 
-        consumoMensual = consumoMensual['data']
+        consumoMensual = consumoMensual['data'];
 
         const db = await getDb();
         const dataMensual = await db
@@ -514,26 +506,45 @@ const postMedicionMensual = async () => {
     }
 }
 
-const postLum = async () => {
+const postLum = async (dataLuminarias) => {
     try {
-        let dataLuminarias = await dataProcessing();
-        validationTrue(dataLuminarias);
+        const db = await getDb();
 
-        dataLuminarias = dataLuminarias['data'];
+        let lumsIdDb = await db
+        .collection('luminarias')
+        .find()
+        .toArray()
 
-        let lum = Object.keys(dataLuminarias)
+        let lumsDb = []
+
+        lumsIdDb.forEach(lum => {
+            lumsDb.push(lum['id_lum'])
+        })
+
+        let lumsIdData = Object.keys(dataLuminarias)
 
         let lums_id = []
 
-        lum.forEach(lumId => {
-            lums_id.push({
-                'id_lum': lumId
-            })
+        lumsIdData.forEach(lumId => {
+            if (!lumsDb.includes(lumId)) {
+                lums_id.push({
+                    'id_lum': lumId
+                })
+            }
         })
 
-        const db = await getDb();
+        if (lums_id.length === 0) {
+            result = {
+                'ok': true,
+                'msg': 'No hay luminarias nuevas para almacenar',
+                'data': null
+            };
+
+            return result;
+        }
+
         const luminarisPost = await db
-        .collection('luminaria')
+        .collection('luminarias')
         .insertMany(
             lums_id
         )
@@ -568,31 +579,43 @@ const postLum = async () => {
     }
 }
 
-/*const postSectores = async () => {
+
+const postAnalisis = async () => {
     try {
-        const dataMedicion = await patchMedicion();
-        validationTrue(dataMedicion);
+        let dataLums = await dataProcessing();
+        validationTrue(dataLums);
 
-        dataMedicion = dataMedicion['data'];
-        
-        let sectores = [];
+        dataLums = dataLums['data'];
 
-        for (let lumIndex = 0; lumIndex < dataMedicion.length; lumIndex++) {
-            dataMedicion[lumIndex][]
-        }
-        
+        let lumsDb = await postLum(dataLums);
+        validationTrue(lumsDb);
+
+        let medicionDb = await postMedicionMensual(dataLums);
+        validationTrue(medicionDb);
+
+        result = {
+            'ok': true,
+            'msg': 'El analisis de datos por luminarias se subio correctamente a la db.',
+            'data': null
+        };
+
+        return result;
     } catch (error) {
-        esult = {
+        result = {
             'ok': false,
-            'msg': 'Las luminarias se han almacenado correctamente.',
+            'msg': 'Ocurrio un error al subir el analisis de las luminarias',
             'data': error
         };
 
         return result;
     } finally {
-        console.log(result['data']);
+        console.log(result['msg']);
+        await client.close();
     }
-}*/
+}
+
+
+
 
 //getDataMedicion();
 //postDataMedicion();
@@ -600,4 +623,6 @@ const postLum = async () => {
 //patchMedicion();
 //dataProcessing();
 //postMedicionMensual();
-postLum();
+//postLum();
+
+postAnalisis();
